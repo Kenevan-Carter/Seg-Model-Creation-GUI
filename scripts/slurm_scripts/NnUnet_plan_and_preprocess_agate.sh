@@ -23,7 +23,7 @@ pip install numpy==1.21.6
 
 export nnUNet_raw_data_base="$1"
 export nnUNet_preprocessed="$1/1nnUNet_preprocessed"
-export RESULTS_FOLDER="/home/faird/shared/data/nnUNet_lundq163/nnUNet_raw_data_base/nnUNet_trained_models/"
+export RESULTS_FOLDER="$3"
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/common/software/install/migrated/cudnn/8.2.0/lib64
 
 nnUNet_plan_and_preprocess -t $2 --verify_dataset_integrity

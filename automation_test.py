@@ -254,7 +254,7 @@ def p_and_p():
     print("--- Now Running Plan and Preprocess ---")
     os.chdir(slurm_scripts_path)
     time.sleep(3)
-    submit_job(log_file_path, ["sbatch", "-W", "NnUnet_plan_and_preprocess_agate.sh", args.raw_data_base_path, args.task_number])
+    submit_job(log_file_path, ["sbatch", "-W", "NnUnet_plan_and_preprocess_agate.sh", args.raw_data_base_path, args.task_number, args.trained_models_path])
     print("--- Finished Plan and Preprocessing ---")
 
 ### TRAINING MODEL ###
@@ -268,7 +268,7 @@ def model_training():
     os.chdir(slurm_scripts_path)
     
     time.sleep(3)
-    submit_job(log_file_path, ["sbatch", "-W", f"NnUnetTrain_agate.sh", "0", "faird", args.task_number, args.raw_data_base_path])
+    submit_job(log_file_path, ["sbatch", "-W", f"NnUnetTrain_agate.sh", "0", "faird", args.task_number, args.raw_data_base_path, args.trained_models_path])
     job_ids[0] = get_job_id_by_name(f"{args.task_number}_0_Train_nnUNet", 0)
     wait_fold_0_setup(job_ids[0], 60)
     print("Begin training Fold 0.")
@@ -277,7 +277,7 @@ def model_training():
     for i in range(1, 5):
         print(f"Begin training Fold {i}")
         time.sleep(3)
-        submit_job(log_file_path, ["sbatch", "-W", f"NnUnetTrain_agate.sh", f"{i}", "faird", args.task_number, args.raw_data_base_path])
+        submit_job(log_file_path, ["sbatch", "-W", f"NnUnetTrain_agate.sh", f"{i}", "faird", args.task_number, args.raw_data_base_path, args.trained_models_path])
         job_ids[i] = get_job_id_by_name(f"{args.task_number}_{i}_Train_nnUNet", i)
         
     # Keep running folds untill all of them are done
@@ -289,29 +289,29 @@ def model_training():
                 complete[i] = True
             else:
                 time.sleep(3)
-                submit_job(log_file_path, ["sbatch", "-W", f"NnUnetTrain_agate.sh", f"{i}", "faird", args.task_number, args.raw_data_base_path, "-c"])
+                submit_job(log_file_path, ["sbatch", "-W", f"NnUnetTrain_agate.sh", f"{i}", "faird", args.task_number, args.raw_data_base_path, args.trained_models_path, "-c"])
                 job_ids[i] = get_job_id_by_name(f"{args.task_number}_{i}_Train_nnUNet", i)
     print("--- Training Complete ---")
 
 ### INFERENCE ###
 def inference():
     print("--- Starting Inference ---")
-    os.chdir(os.path.join("/home", "faird", "shared", "data", "nnUNet_lundq163"))
-    if not os.path.isdir(os.path.join("/home", "faird", "shared", "data", "nnUNet_lundq163", f"{args.task_number}_infer")):
-        os.mkdir(os.path.join("/home", "faird", "shared", "data", "nnUNet_lundq163", f"{args.task_number}_infer"))
+    os.chdir(args.results_path)
+    if not os.path.isdir(os.path.join(args.results_path, f"{args.task_number}_infer")):
+        os.mkdir(os.path.join(args.results_path, f"{args.task_number}_infer"))
     os.chdir(slurm_scripts_path)
     time.sleep(3)
-    submit_job(log_file_path, ["sbatch", "-W", f"infer_agate.sh", "faird", args.task_number, args.raw_data_base_path])
+    submit_job(log_file_path, ["sbatch", "-W", f"infer_agate.sh", "faird", args.task_number, args.raw_data_base_path, args.trained_models_path])
     id = get_job_id_by_name(f"{args.task_number}_infer", -1)
     wait_for_job_to_finish(id, -1, 60) 
     print("--- Inference Complete ---")
     #'''
     ### CREATE PLOTS
     print("--- Creating Plots ---")
-    if not os.path.isdir(os.path.join("/home", "faird", "shared", "data", "nnUNet_lundq163", f"{args.task_number}_results")):
-        os.mkdir(os.path.join("/home", "faird", "shared", "data", "nnUNet_lundq163", f"{args.task_number}_results"))
+    if not os.path.isdir(os.path.join(args.results_path, f"{args.task_number}_results")):
+        os.mkdir(os.path.join(args.results_path, f"{args.task_number}_results"))
     os.chdir(os.path.join(args.synth_path, "SynthSeg", "dcan", "paper"))
-    subprocess.run(["python", "evaluate_results.py", os.path.join(args.task_path, "labelsTs"), os.path.join("home", "faird", "shared", "data", "nnUNet_lundq163", f"{args.task_number}_infer"), os.path.join("home", "faird", "shared", "data", "nnUNet_lundq163", f"{args.task_number}_results")])
+    subprocess.run(["python", "evaluate_results.py", os.path.join(args.task_path, "labelsTs"), os.path.join(args.results_path, f"{args.task_number}_infer"), os.path.join(args.results_path, f"{args.task_number}_results")])
     print("--- Plots Creted ---")
 
 if __name__ == '__main__':
@@ -320,6 +320,8 @@ if __name__ == '__main__':
     parser.add_argument('task_path')
     parser.add_argument('synth_path')
     parser.add_argument('raw_data_base_path')
+    parser.add_argument('results_path')
+    parser.add_argument('trained_models_path')
     parser.add_argument('modality')
     parser.add_argument('task_number')
     parser.add_argument('distribution')
@@ -335,7 +337,7 @@ if __name__ == '__main__':
     os.environ["PYTHONPATH"] = f"{args.synth_path}:{os.path.join(args.synth_path, 'SynthSeg')}:{args.dcan_path}:{os.path.join(args.dcan_path, 'dcan')}"
     os.environ["nnUNet_raw_data_base"] = args.raw_data_base_path
     os.environ["nnUNet_preprocessed"] = os.path.join(args.raw_data_base_path, "nnUNet_preprocessed")
-    os.environ["RESULTS_FOLDER"] = os.path.join("home", "faird", "shared", "data", "nnUNet_lundq163", "nnUNet_raw_data_base", "nnUNet_trained_models")
+    os.environ["RESULTS_FOLDER"] = args.trained_models_path
     
     script_dir = os.path.abspath(os.path.dirname(__file__))
     os.chdir(script_dir) 

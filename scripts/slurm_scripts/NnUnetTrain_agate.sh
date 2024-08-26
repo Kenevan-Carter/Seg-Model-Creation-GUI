@@ -28,7 +28,7 @@ conda activate /home/support/public/pytorch_1.11.0_agate
 
 export nnUNet_raw_data_base="$4"
 export nnUNet_preprocessed="$4/nnUNet_preprocessed"
-export RESULTS_FOLDER="/home/faird/shared/data/nnUNet_lundq163/nnUNet_raw_data_base/nnUNet_trained_models/"
+export RESULTS_FOLDER="$5"
 
-nnUNet_train 3d_fullres nnUNetTrainerV2_noMirroring $3 $1 $5
+nnUNet_train 3d_fullres nnUNetTrainerV2_noMirroring $3 $1 $6
 EOT
