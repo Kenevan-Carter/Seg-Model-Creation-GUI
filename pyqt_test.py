@@ -48,18 +48,8 @@ class Thread(QtCore.QThread):
         self.script_dir = script_dir
         self.check_list=check_list
 
-    def get_active_job_names(self, job_names):
-    # Run the squeue command and capture the output
-        active_jobs = []
-        for job in job_names:  
-            result = subprocess.run(['squeue', '--name', job, '--format', '%.50j'], capture_output=True, text=True)
-            result = result.stdout.splitlines()
-            if result[-1] != "":
-                active_jobs.append(result[-1])
-
-        return active_jobs
-
     def cancel_jobs(self):
+        # Uses active jobs file to cancel al job ids listedF
         with open(os.path.join(self.script_dir, "scripts", "slurm_scripts", self.task_num, "active_jobs.txt"), 'r') as f:
             lines = f.readlines()
                     
@@ -75,18 +65,20 @@ class Thread(QtCore.QThread):
         self.processes.append(p)
         p.wait()
               
-        if p.returncode != 0 and not self.quit_program:
-            print("AN ERROR HAS OCCURED")
-            self.cancel_jobs()         
-        elif p.returncode == 0:
-            self.cancel_jobs()
-        elif p.returncode != 0 and self.quit_program:
-            self.cancel_jobs()
-            print("PROCESS STOPPED")
+        # Do certain things depending on how the program stopped
+        self.cancel_jobs()
+        if p.returncode == 0: # Complete normally
+            pass
+        elif not self.quit_program:      
+            print("AN ERROR HAS OCCURED") # There was an erro
+        elif self.quit_program:
+            print("PROCESS STOPPED") # User stopped program manually
   
         self.finished.emit() # Tells the program that the thread has finished
            
     def stop_program(self):  
+        # Specifically for when user stops program manually
+        # Cancels all subprocesses that are currently running
         if len(self.processes) > 0:
             self.quit_program = True
             
@@ -127,9 +119,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.comboBox_remove_preset.setEditable(False)
             self.comboBox_preset.setPlaceholderText('No Presets')
             self.comboBox_remove_preset.setPlaceholderText('No Presets')
-            # self.comboBox_preset.setItemText(0, 'You do not have any presets')
             self.comboBox_preset.setStyleSheet("background-color: rgb(137, 137, 137)")
-            # self.comboBox_remove_preset.setItemText(0, 'You do not have any presets')
             self.comboBox_remove_preset.setStyleSheet("background-color: rgb(137, 137, 137)")
             
         self.comboBox_preset.setCurrentIndex(-1)
@@ -146,7 +136,6 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.inputDict['synth_img_amt'] = self.line_synth_img_amt
         self.inputDict['results_path'] = self.line_results_path
         self.inputDict['trained_models_path'] = self.line_trained_models_path
-        #self.inputDict['slurm_scripts_path'] = self.line_slurm_scripts_path
         
         self.check_list = []
         
@@ -166,12 +155,14 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.button_browse_4.clicked.connect(lambda: self.browse(4))
     
     def findAlphabeticalIndex(self, combo, item):
+        # Used to help add items to comboboxes in alphabetical order
         combo_list = [combo.itemText(i) for i in range(combo.count())]
         combo_list.append(item)
         combo_list.sort(key=lambda i: i.upper())
         return combo_list.index(item)
     
     def check_inputs(self):
+        # Makes sure all inputs are vald: paths exist, option inputs are valid, etc
         inp_dcan_path = os.path.exists(Path(self.line_dcan_path.text().strip()))
         inp_synth_path = os.path.exists(Path(self.line_synth_path.text().strip()))
         inp_task_path = os.path.exists(Path(self.line_task_path.text().strip()))
@@ -221,7 +212,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         elif self.running == True:
             self.menuiuhwuaibfa.setTitle("Program Stopped")
             self.temp_thread.stop_program() # Stops subrocesses within thread. This will cause the finish signal to be sent
+            
     def browse(self,num):
+    # Files browser
         path_dic = {
     1: (self.line_dcan_path, os.path.expanduser("~")),
     2: (self.line_task_path, "/"),
@@ -236,8 +229,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         if dialog:
             line_edit.setText(str(dialog))
         
-    def check_status(self):
-        
+    def check_status(self):  
+        # Updates a list showing which steps the user wants to run  
         for checkBox in self.checkBoxes:
             self.check_list.append(1 if checkBox.isChecked() else 0)
         
@@ -256,11 +249,13 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 checkBox.setChecked(False)
 
     def on_finish_thread(self):
+        # Runs when the class recieves the finished signal from the thread
         self.running = False
         self.check_list = []
         self.pushButton.setText('run')
             
     def populate_inputs(self):
+        # Fills input boxes after reading from file
         if self.comboBox_preset.currentIndex()>=0:
             if os.path.isfile(os.path.join(self.script_dir, "automation_presets", f"{self.comboBox_preset.currentText().strip()}.config")):
                 f = open(os.path.join(self.script_dir, "automation_presets", f"{self.comboBox_preset.currentText().strip()}.config"))
@@ -283,6 +278,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.menuiuhwuaibfa.setTitle("File Does Not Exist")
             
     def save_preset(self):
+        # Saves preset data to a file
         if self.line_save_preset.text().strip() == "":
             return
         if all(inp.text().strip() == "" for inp in self.inputDict.values()):
@@ -337,6 +333,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.comboBox_remove_preset.currentIndex()>=0:
             if os.path.isfile(os.path.join(self.script_dir, "automation_presets", f"{self.comboBox_remove_preset.currentText().strip()}.config")):
                 
+                # Creates popup asking user if they are sure they want to delete their preset
                 dlg = CustomDialog()
                 if dlg.exec():
                     os.remove(os.path.join(self.script_dir, "automation_presets", f"{self.comboBox_remove_preset.currentText().strip()}.config"))
@@ -353,6 +350,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                         
                     self.comboBox_remove_preset.setCurrentIndex(-1)
                 
+                    # If you deleted your only preset
                     if self.comboBox_preset.count() < 1:
                         self.comboBox_preset.setEditable(False)
                         self.comboBox_remove_preset.setEditable(False)
@@ -412,7 +410,7 @@ class LoginWindow(QtWidgets.QMainWindow, Ui_LoginWindow):
         # Get the directory of this file
         self.script_dir = os.path.abspath(os.path.dirname(__file__))  
     
-        
+        # Populate inputs based on the preset you selected
         for file in os.listdir(os.path.join(self.script_dir, "automation_presets")):
             file = file[:-7]
             self.comboBox.insertItem(self.findAlphabeticalIndex(self.comboBox, file), file)
@@ -426,12 +424,14 @@ class LoginWindow(QtWidgets.QMainWindow, Ui_LoginWindow):
         self.comboBox.setCurrentIndex(-1)
         
     def findAlphabeticalIndex(self, combo, item):
+        # Used to sort combobox alphabetically
         combo_list = [combo.itemText(i) for i in range(combo.count())]
         combo_list.append(item)
         combo_list.sort(key=lambda i: i.upper())
         return combo_list.index(item)
     
     def run_uiScript(self):
+        # Starts up main UI screen
         if self.comboBox.currentText().strip() == '' or self.comboBox.findText(self.comboBox.currentText()) != -1:
             self.new_ui = Window()
             self.new_ui.show() 

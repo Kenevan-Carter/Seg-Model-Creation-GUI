@@ -9,7 +9,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QCompleter, QComboBox, QCheckBox
+from PyQt5.QtWidgets import *
 import PyQt5_stylesheets
 from custom_widgets import *
 
@@ -91,7 +91,7 @@ class Ui_MainWindow(object):
         self.comboBox_preset.lineEdit().setPlaceholderText("-- Select Preset --")
 
         self.checkBoxes = []  # Store references to checkboxes
-        run_list = ['Resize Images', 'Mins/Maxs', 'SynthSeg Image Creation', 'Copying SynthSeg Images Over', 'Create JSON File','Plan and Preprocess','Training the Model', 'Running Inference']
+        run_list = ['Resize Images', 'Mins/Maxes', 'SynthSeg Image Creation', 'Copying SynthSeg Images Over', 'Create JSON File','Plan and Preprocess','Training the Model', 'Running Inference']
         for i in range(8):
             self.checkBox = QCheckBox(run_list[i], self.centralwidget)
             self.checkBox.setObjectName(f'checkBox_{i}')
@@ -134,6 +134,35 @@ class Ui_MainWindow(object):
         self.line_modality = QtWidgets.QLineEdit(self.centralwidget)
         self.line_modality.setObjectName("line_modality")
         self.gridLayout.addWidget(self.line_modality, 13, 0, 1, 1)
+        
+        '''
+        
+        self.groupBox_modality = QGroupBox()
+        
+        self.radio_t1 = QRadioButton("t1", self.centralwidget)
+        self.radio_t1.setObjectName(f'radio_t1')
+        
+        self.radio_t2 = QRadioButton("t2", self.centralwidget)
+        self.radio_t2.setObjectName(f'radio_t2')
+        
+        self.radio_t1t2 = QRadioButton("t1t2", self.centralwidget)
+        self.radio_t1t2.setObjectName(f'radio_t1t2')
+        
+        self.hbox_modality = QHBoxLayout()
+        self.hbox_modality.addWidget(self.radio_t1)
+        self.hbox_modality.addWidget(self.radio_t2)
+        self.hbox_modality.addWidget(self.radio_t1t2)
+        self.hbox_modality.addStretch(1)
+        self.hbox_modality.setContentsMargins(0, 0, 0, 0)
+        self.hbox_modality.setSpacing(0)
+        
+        self.groupBox_modality.setLayout(self.hbox_modality)
+        
+        self.gridLayout.addWidget(self.groupBox_modality, 13, 0, 1, 1, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self.groupBox_modality.setFlat(True)
+        
+        '''
+        
         self.label_synth_img_amt = QtWidgets.QLabel(self.centralwidget)
         self.label_synth_img_amt.setMaximumSize(QtCore.QSize(300, 20))
         self.label_synth_img_amt.setObjectName("label_synth_img_amt")
@@ -189,6 +218,31 @@ class Ui_MainWindow(object):
         self.line_distribution = QtWidgets.QLineEdit(self.centralwidget)
         self.line_distribution.setObjectName("line_distribution")
         self.gridLayout.addWidget(self.line_distribution, 17, 0, 1, 1)
+        
+        '''
+        
+        self.groupBox_distribution = QGroupBox()
+        
+        self.radio_normal = QRadioButton("normal", self.centralwidget)
+        self.radio_normal.setObjectName(f'radio_normal')
+        
+        self.radio_uniform = QRadioButton("uniform", self.centralwidget)
+        self.radio_uniform.setObjectName(f'radio_uniform')
+        
+        self.hbox_distribution = QHBoxLayout()
+        self.hbox_distribution.addWidget(self.radio_uniform)
+        self.hbox_distribution.addWidget(self.radio_normal)
+        self.hbox_distribution.addStretch(1)
+        self.hbox_distribution.setContentsMargins(0, 0, 0, 0)
+        self.hbox_distribution.setSpacing(0)
+        
+        self.groupBox_distribution.setLayout(self.hbox_distribution)
+        
+        self.gridLayout.addWidget(self.groupBox_distribution, 17, 0, 1, 1, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self.groupBox_distribution.setFlat(True)
+        
+        '''
+        
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 892, 26))

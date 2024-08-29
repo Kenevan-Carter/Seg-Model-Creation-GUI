@@ -16,13 +16,13 @@ def get_job_id_by_name(job_name, fold=-2):
     # Extract the job ID from the output
     output = result.stdout.splitlines()
     if len(output) > 1:
-        # Assuming the first line is the header, get the first job ID from the second line
+        # Get the job id and add it to active jobs
         job_id = output[1].split()[0].strip()
         with open(log_file_path, "a") as file:
             file.write(f"{job_id}\n")
         # Wait for necessary files to be made
-        break_count = 0
         # Only do this for train step, other steps will have fold number -1
+        break_count = 0
         # Waits for the necessary files to be made
         if fold >= 0:
             while (not os.path.isfile(os.path.join(slurm_scripts_path, f"Train_{fold}_{args.task_number}_nnUNet-{job_id}.out"))) or (not os.path.isfile(os.path.join(slurm_scripts_path, f"Train_{fold}_{args.task_number}_nnUNet-{job_id}.err"))):
@@ -68,7 +68,7 @@ def wait_for_job_to_finish(job_id, fold, check_interval=60):
     # Waits untill job is done running
     printCondition = 0
     while is_job_running(job_id):
-        # Check if the job has finished every 60 seconds but update the user in the terminal once an day if it is still running
+        # Check if the job has finished every 60 seconds but updates the user in the terminal every period of time depending on the step in the training process
         if printCondition % 1140 == 0 and fold >= 0:
             print(f"Waiting for fold {fold} to complete training...")
         if printCondition % 60 == 0 and fold == -1:
@@ -107,16 +107,15 @@ def wait_fold_0_setup(job_id, check_interval=60):
         time.sleep(check_interval)
 
 def fix_slurm_scripts(slurm_path, script_name, replaced, task_num):
+    # Adds task number to job name line (Not necessary, just to be able to distinguish jobs easier)
     with open(os.path.join(slurm_path, script_name), 'r') as f:
         lines = f.readlines()
-    # Modify the line containing '--job-name=create_min_maxes'
+    # Modify the line containing the job name
     for i in range(len(lines)):
         if lines[i].strip().startswith(replaced) and not lines[i].strip().startswith(f'{replaced}_{task_num}'):
-            # Split the line into the part before the comment and the comment itself
+            # Takes into account comments on this line
             parts = lines[i].split('#')
-            # Add '_500' to the job name before the comment
             parts[1] = parts[1].strip() + '_' + task_num
-            # Rejoin the parts, ensuring the comment is preserved
             lines[i] = '#' + parts[1] + '    #' + parts[2] if len(parts) > 2 else '#' + parts[1]
             lines[i] += '\n'
             break
@@ -125,8 +124,9 @@ def fix_slurm_scripts(slurm_path, script_name, replaced, task_num):
         f.writelines(lines)
         
 def set_up_slurm_scripts_folder(task_slurm, all_slurm, task_num):
+    # Creates a script folder for your task and populates it with the necessary SLURM scripts
     scripts = ["SynthSeg_image_generation.sh", "NnUnet_plan_and_preprocess_agate.sh", "NnUnetTrain_agate.sh", "infer_agate.sh", "create_min_maxes.sh"]
-    # Set up the slurm scripts
+    # Copy over slurm scripts to newly created task specific folder
     if not os.path.isdir(task_slurm):
         os.mkdir(task_slurm)
     for s in scripts:
@@ -141,6 +141,7 @@ def set_up_slurm_scripts_folder(task_slurm, all_slurm, task_num):
         pass
             
 def move_files(src_dir, dst_dir, pattern):
+    # Part of the copying over synthseg step
     for filename in os.listdir(src_dir):
         if pattern in filename:
             src_file = os.path.join(src_dir, filename)
@@ -148,13 +149,12 @@ def move_files(src_dir, dst_dir, pattern):
             shutil.move(src_file, dst_file) 
             
 def submit_job(job_log_file, sbatch_list, output_file_name=''):
-    
+    # Submits jobs and adds their job_id to the active jobs list
     job_ids = []
     process = subprocess.Popen(sbatch_list, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
     job_id = process.stdout.readline().strip().split()[-1].decode("utf-8")  # Extract the job ID from the sbatch output
     job_ids.append(job_id)
     
-    # Append the job ID to the file
     with open(job_log_file, "a") as file:
         for i in job_ids:
             file.write(f"{i}\n")
@@ -166,6 +166,7 @@ def submit_job(job_log_file, sbatch_list, output_file_name=''):
     elif output_file_name == "synthseg":
         file = files[1]
     
+    # Makes sure necessary files for certain steps are created before printing updates
     if output_file_name != '':
         break_count = 0
         while not os.path.isfile(os.path.join(slurm_scripts_path, file)):
@@ -189,21 +190,22 @@ def submit_job(job_log_file, sbatch_list, output_file_name=''):
         process.wait()
 
 def monitor_log_file(file_path, job_process):
+    # Continuously prints out file contents
     with open(file_path, 'r') as log_file:
         # Move to the end of the file
         log_file.seek(0, os.SEEK_END)
         while job_process.poll() is None:  # While the job is still running
             line = log_file.readline()
             if line:
-                print(line, end='', flush=True)  # Print new lines from the log file
+                print(line, end='')
             else:
-                time.sleep(1)  # Sleep briefly to avoid busy-waiting
+                time.sleep(1)
 
 ### RESIZING IMAGES ###
 def resize_images():
-        print("--- Now Resizing Images ---")
-        p = subprocess.run(["python", os.path.join(args.dcan_path, "dcan", "img_processing", "resize_images_test.py"), args.task_path])
-        print("--- Images Resized ---")
+    print("--- Now Resizing Images ---")
+    p = subprocess.run(["python", os.path.join(args.dcan_path, "dcan", "img_processing", "resize_images_test.py"), args.task_path])
+    print("--- Images Resized ---")
     
 ### SETTING UP MINS/MAXES ###
 def min_max():
@@ -326,10 +328,7 @@ if __name__ == '__main__':
     parser.add_argument('task_number')
     parser.add_argument('distribution')
     parser.add_argument('synth_img_amt')
-    
- 
-    parser.add_argument('list')
-    
+    parser.add_argument('list')  
 
     args = parser.parse_args()
 
@@ -347,6 +346,8 @@ if __name__ == '__main__':
     log_file_path = os.path.join(slurm_scripts_path, "active_jobs.txt")
     
     set_up_slurm_scripts_folder(slurm_scripts_path, all_slurm_path, args.task_number)
+
+    # Run steps based on what the user checked using the interface
 
     run_list = [resize_images, min_max, SynthSeg_img, copy_SynthSeg, create_json, p_and_p, model_training, inference]
     
