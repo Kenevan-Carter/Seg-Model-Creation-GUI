@@ -234,12 +234,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
     def browse(self,num):
     # Files browser
         path_dic = {
-    1: (self.line_dcan_path, os.path.expanduser("~")),
+    1: (self.line_dcan_path, "/"),
     2: (self.line_task_path, "/"),
-    3: (self.line_synth_path, os.path.expanduser("~")),
+    3: (self.line_synth_path, "/"),
     4: (self.line_raw_data_base_path, "/"),
     5: (self.line_results_path,"/"),
-    6: (self.line_trained_models_path, os.path.expanduser("~"))
+    6: (self.line_trained_models_path, "/")
         }
 
         line_edit,default_path=path_dic.get(num)
